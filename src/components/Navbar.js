@@ -63,7 +63,7 @@ function Navbar() {
             to="/admin-login"
             className="bg-red-500 text-white py-2 px-4 rounded-lg shadow-lg hover:bg-red-600 transition-colors duration-300"
           >
-            Admin Login
+            Login
           </Link>
         )}
       </div>

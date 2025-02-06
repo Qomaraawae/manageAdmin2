@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { collection, getDocs, deleteDoc, doc, addDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
-import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../context/AuthContext";
 
@@ -9,7 +8,6 @@ function LaporanTemuan() {
   const { isAdmin } = useAuth();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -48,18 +46,22 @@ function LaporanTemuan() {
 
   const handleReturnToLost = async (report) => {
     try {
-      // Pindahkan kembali ke koleksi lost_items
-      await addDoc(collection(db, "lost_items"), {
+      // Membuat dokumen baru di koleksi "returned_items" untuk data pengembalian
+      await addDoc(collection(db, "returned_items"), {
         ...report,
         returnedAt: new Date(),
+        status: "dikembalikan ke barang hilang",
       });
 
-      // Hapus dari found_items
+      // Menghapus dokumen dari koleksi "found_items" setelah berhasil dipindahkan
       await deleteDoc(doc(db, "found_items", report.id));
-      setReports((prevReports) => prevReports.filter((item) => item.id !== report.id));
-      
+
       toast.success("Laporan dikembalikan ke barang hilang!");
-      navigate("/dashboard");
+
+      // Menghapus data yang ada di tampilan lokal
+      setReports((prevReports) =>
+        prevReports.filter((item) => item.id !== report.id)
+      );
     } catch (error) {
       console.error("Error returning report: ", error);
       toast.error("Gagal mengembalikan laporan.");
@@ -79,14 +81,17 @@ function LaporanTemuan() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Laporan Ditemukan</h1>
       </div>
-      
+
       <p className="text-gray-600 mb-6">Berikut adalah laporan barang yang telah ditemukan:</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {reports.length === 0 ? (
           <p className="text-gray-500">Belum ada laporan barang ditemukan.</p>
         ) : (
           reports.map((report) => (
-            <div key={report.id} className="p-4 border border-gray-300 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <div
+              key={report.id}
+              className="p-4 border border-gray-300 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300"
+            >
               <h2 className="text-lg font-bold text-gray-700">{report.namaBarang}</h2>
               <p className="text-gray-600">Kategori: {report.kategori}</p>
               <p className="text-gray-600">Deskripsi: {report.deskripsi}</p>
@@ -94,9 +99,9 @@ function LaporanTemuan() {
                 Tanggal Ditemukan: {new Date(report.confirmedAt.seconds * 1000).toLocaleString()}
               </p>
               {report.foto && (
-                <img 
-                  src={report.foto} 
-                  alt="Foto barang ditemukan" 
+                <img
+                  src={report.foto}
+                  alt="Foto barang ditemukan"
                   className="mt-4 w-full h-56 object-cover rounded-lg"
                 />
               )}

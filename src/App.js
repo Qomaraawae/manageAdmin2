@@ -6,11 +6,14 @@ import LaporanHilangan from "./components/LaporanHilangan";
 import LaporanTemuan from "./components/LaporanTemuan";
 import AdminPage from "./pages/AdminPage";
 import DashboardPage from "./pages/Dashboard";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
 import { AuthProvider } from "./context/AuthContext";
 import AdminRoute from "./routes/AdminRoute";
+import PrivateRoute from "./routes/AdminRoute";
 import { ToastContainer } from 'react-toastify';
 
-function App() {
+const App = () => {
   return (
     <AuthProvider>
       <Router>
@@ -19,11 +22,34 @@ function App() {
           <div className="container mx-auto p-6">
             <Routes>
               <Route path="/" element={<HomeComponent />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
               <Route path="/laporan-hilangan" element={<LaporanHilangan />} />
-              <Route path="/laporan-ditemukan" element={<LaporanTemuan />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route 
+                path="/laporan-ditemukan" 
+                element={
+                  <PrivateRoute>
+                    <LaporanTemuan />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/dashboard" 
+                element={
+                  <PrivateRoute>
+                    <DashboardPage />
+                  </PrivateRoute>
+                } 
+              />
               <Route path="/admin-login" element={<AdminPage />} />
-              <Route path="/admin-dashboard" element={<AdminRoute><DashboardPage /></AdminRoute>} />
+              <Route 
+                path="/admin-dashboard" 
+                element={
+                  <AdminRoute>
+                    <DashboardPage />
+                  </AdminRoute>
+                } 
+              />
             </Routes>
           </div>
           <ToastContainer />
@@ -31,6 +57,6 @@ function App() {
       </Router>
     </AuthProvider>
   );
-}
+};
 
 export default App;
