@@ -6,18 +6,15 @@ function HomeComponent() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-white px-4 text-center space-y-6">
-      {/* Judul */}
       <h1 className="text-4xl md:text-5xl font-bold tracking-wide text-black">
         Selamat Datang di
         <span className="block text-blue-600">Aplikasi Laporan Barang Hilang</span>
       </h1>
 
-      {/* Deskripsi */}
       <p className="text-lg text-gray-700 max-w-lg">
         Laporkan barang yang hilang atau temukan barang yang hilang dengan mudah dan cepat.
       </p>
 
-      {/* Tombol */}
       <div className="flex flex-col md:flex-row gap-4">
         <button
           onClick={() => navigate("/laporan-hilangan")}

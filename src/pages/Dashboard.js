@@ -36,7 +36,6 @@ function Dashboard() {
         }));
         setLostReports(reportsDataLost);
 
-        // Fetch data for returned items
         const querySnapshotReturned = await getDocs(collection(db, "returned_items"));
         const reportsDataReturned = querySnapshotReturned.docs.map((doc) => ({
           id: doc.id,
@@ -53,21 +52,18 @@ function Dashboard() {
 
   const handleConfirmation = async (report, fromCollection) => {
     try {
-      // Jika laporan mengandung gambar, unggah gambar ke Cloudinary
       let imageUrl = report.foto;
       if (report.imageFile) {
-        imageUrl = await uploadImageToCloudinary(report.imageFile); // Unggah gambar yang disertakan dengan laporan
+        imageUrl = await uploadImageToCloudinary(report.imageFile);
       }
 
-      // Menambahkan laporan ke koleksi yang sesuai
       const targetCollection = fromCollection === "returned_items" ? "found_items" : "returned_items";
       await addDoc(collection(db, targetCollection), {
         ...report,
         confirmedAt: new Date(),
-        foto: imageUrl, // Menyimpan URL gambar dari Cloudinary
+        foto: imageUrl,
       });
 
-      // Menghapus laporan dari koleksi asal (menghapusnya dari returned_items jika dari returned_items)
       await deleteDoc(doc(db, fromCollection, report.id));
       setReturnedReports((prevReports) => prevReports.filter((item) => item.id !== report.id));
       setLostReports((prevReports) => prevReports.filter((item) => item.id !== report.id));
@@ -110,9 +106,9 @@ function Dashboard() {
               <p className="text-gray-600">Tanggal: {new Date(report.tanggal.seconds * 1000).toLocaleString()}</p>
               {report.foto && (
                 <img
-                  src={report.foto} // URL gambar yang disimpan di Cloudinary
+                  src={report.foto}
                   alt="Foto barang hilang"
-                  className="mt-4 w-full h-56 object-cover rounded-lg"
+                  className="mt-4 w-full h-auto object-cover rounded-lg"
                 />
               )}
               {isAdmin && (
@@ -150,9 +146,9 @@ function Dashboard() {
               <p className="text-gray-600">Tanggal Pengembalian: {new Date(report.returnedAt.seconds * 1000).toLocaleString()}</p>
               {report.foto && (
                 <img
-                  src={report.foto} // URL gambar yang disimpan di Cloudinary
+                  src={report.foto}
                   alt="Foto barang dikembalikan"
-                  className="mt-4 w-full h-56 object-cover rounded-lg"
+                  className="mt-4 w-full h-auto object-cover rounded-lg"
                 />
               )}
               {isAdmin && (

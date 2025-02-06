@@ -12,7 +12,6 @@ function AdminPage() {
   const location = useLocation();
   const { isAdmin } = useAuth();
 
-  // Redirect if already logged in as admin
   React.useEffect(() => {
     if (isAdmin) {
       navigate('/dashboard');

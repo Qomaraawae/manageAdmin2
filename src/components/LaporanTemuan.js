@@ -46,19 +46,16 @@ function LaporanTemuan() {
 
   const handleReturnToLost = async (report) => {
     try {
-      // Membuat dokumen baru di koleksi "returned_items" untuk data pengembalian
       await addDoc(collection(db, "returned_items"), {
         ...report,
         returnedAt: new Date(),
         status: "dikembalikan ke barang hilang",
       });
 
-      // Menghapus dokumen dari koleksi "found_items" setelah berhasil dipindahkan
       await deleteDoc(doc(db, "found_items", report.id));
 
       toast.success("Laporan dikembalikan ke barang hilang!");
 
-      // Menghapus data yang ada di tampilan lokal
       setReports((prevReports) =>
         prevReports.filter((item) => item.id !== report.id)
       );
@@ -102,7 +99,7 @@ function LaporanTemuan() {
                 <img
                   src={report.foto}
                   alt="Foto barang ditemukan"
-                  className="mt-4 w-full h-56 object-cover rounded-lg"
+                  className="mt-4 w-full h-auto object-cover rounded-lg"
                 />
               )}
               {isAdmin && (
