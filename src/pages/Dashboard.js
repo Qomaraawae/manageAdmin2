@@ -1,309 +1,325 @@
 import React, { useEffect, useState } from "react";
-import {
-  collection,
-  getDocs,
-  deleteDoc,
-  doc,
-  addDoc,
-  getDoc,
-  onSnapshot,
-} from "firebase/firestore";
-import { db } from "../config/firebase";
-import { toast } from "react-toastify";
 import { useAuth } from "../context/AuthContext";
-import axios from "axios";
+import {
+  deleteReport,
+  setupReportsListener,
+  moveReportToReturned,
+} from "../config/firestore";
+import { toast } from "react-toastify";
+import "../output.css";
 
-// Fungsi untuk mengupload gambar ke Cloudinary
-const uploadImageToCloudinary = async (image) => {
-  const cloudinaryUrl =
-    "https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/image/upload";
-  const formData = new FormData();
-  formData.append("file", image);
-  formData.append("upload_preset", "YOUR_UPLOAD_PRESET");
-
-  try {
-    const response = await axios.post(cloudinaryUrl, formData);
-    return response.data.secure_url; // Mendapatkan URL gambar yang ter-upload
-  } catch (error) {
-    console.error("Error uploading image to Cloudinary", error);
-    return null;
-  }
-};
-
-// Helper function untuk format tanggal Firestore
-const formatFirestoreDate = (firestoreTimestamp) => {
-  if (firestoreTimestamp && firestoreTimestamp.seconds) {
-    return new Date(firestoreTimestamp.seconds * 1000).toLocaleString();
-  }
-  return "Tanggal tidak tersedia";
+// Helper untuk format tanggal
+const formatDate = (timestamp) => {
+  if (!timestamp?.seconds) return "Tanggal tidak tersedia";
+  return new Date(timestamp.seconds * 1000).toLocaleString();
 };
 
 function Dashboard() {
   const { isAdmin } = useAuth();
   const [lostReports, setLostReports] = useState([]);
   const [returnedReports, setReturnedReports] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [activePopover, setActivePopover] = useState(null);
+  const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 });
 
+  // Realtime listeners
   useEffect(() => {
-    // Set up realtime listeners
-    const unsubscribeLost = onSnapshot(
-      collection(db, "lost_items"),
-      (snapshot) => {
-        const updatedData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setLostReports(updatedData);
-        setIsLoading(false);
-      },
-      (error) => {
-        console.error("Error fetching lost items:", error);
-        toast.error("Gagal mengambil data barang hilang");
-        setIsLoading(false);
-      }
+    const unsubscribeLost = setupReportsListener("lost_items", setLostReports);
+    const unsubscribeReturned = setupReportsListener(
+      "returned_items",
+      setReturnedReports
     );
 
-    const unsubscribeReturned = onSnapshot(
-      collection(db, "returned_items"),
-      (snapshot) => {
-        const updatedData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setReturnedReports(updatedData);
-        setIsLoading(false);
-      },
-      (error) => {
-        console.error("Error fetching returned items:", error);
-        toast.error("Gagal mengambil data barang yang dikembalikan");
-        setIsLoading(false);
-      }
-    );
+    setLoading(false);
 
-    // Clean up listeners
     return () => {
       unsubscribeLost();
       unsubscribeReturned();
     };
   }, []);
 
-  const refreshData = async () => {
-    setIsLoading(true);
-    try {
-      const querySnapshotLost = await getDocs(collection(db, "lost_items"));
-      const reportsDataLost = querySnapshotLost.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setLostReports(reportsDataLost);
-
-      const querySnapshotReturned = await getDocs(
-        collection(db, "returned_items")
-      );
-      const reportsDataReturned = querySnapshotReturned.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setReturnedReports(reportsDataReturned);
-
-      toast.info("Data berhasil diperbarui");
-    } catch (error) {
-      console.error("Error refreshing data: ", error);
-      toast.error("Gagal memperbarui data");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleConfirmation = async (report, fromCollection) => {
-    try {
-      let imageUrl = report.foto;
-      if (report.imageFile) {
-        imageUrl = await uploadImageToCloudinary(report.imageFile);
+  // Tambahkan event listener untuk menutup popover ketika klik di luar
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        activePopover &&
+        !event.target.closest(".popover") &&
+        !event.target.closest(".btn")
+      ) {
+        setActivePopover(null);
       }
+    };
 
-      const targetCollection =
-        fromCollection === "returned_items" ? "found_items" : "returned_items";
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [activePopover]);
 
-      // Hindari menyertakan ID dari dokumen asal
-      const { id, ...reportWithoutId } = report;
+  // Fungsi untuk toggle popover
+  const togglePopover = (popoverId, event) => {
+    if (event) {
+      const buttonRect = event.currentTarget.getBoundingClientRect();
+      const scrollTop =
+        window.pageYOffset || document.documentElement.scrollTop;
 
-      await addDoc(collection(db, targetCollection), {
-        ...reportWithoutId,
-        originalId: id, // simpan ID asli sebagai referensi jika diperlukan
-        confirmedAt: new Date(),
-        foto: imageUrl,
+      setPopoverPosition({
+        top: buttonRect.top + scrollTop - 10, // Posisi di atas tombol
+        left: buttonRect.left + buttonRect.width / 2,
       });
-
-      await deleteDoc(doc(db, fromCollection, id));
-
-      toast.success("Laporan berhasil dikonfirmasi!");
-    } catch (error) {
-      console.error("Error confirming report: ", error);
-      toast.error("Gagal mengonfirmasi laporan.");
     }
+
+    setActivePopover(activePopover === popoverId ? null : popoverId);
   };
 
+  // Fungsi hapus dengan popover
   const handleDelete = async (id, collectionName) => {
     try {
-      // Simpan referensi dokumen
-      const docRef = doc(db, collectionName, id);
-
-      // Hapus dokumen
-      await deleteDoc(docRef);
-
-      // Verifikasi penghapusan
-      setTimeout(async () => {
-        try {
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            console.warn("Dokumen masih ada setelah penghapusan");
-            toast.warning("Dokumen mungkin belum sepenuhnya terhapus");
-          }
-        } catch (verifyError) {
-          console.error("Error verifying deletion:", verifyError);
-        }
-      }, 1000);
-
+      await deleteReport(collectionName, id);
+      setActivePopover(null);
       toast.success("Laporan berhasil dihapus!");
     } catch (error) {
-      console.error("Error deleting report: ", error);
-      toast.error(
-        `Gagal menghapus laporan: ${error.message || "Unknown error"}`
-      );
+      toast.error(`Gagal menghapus: ${error.message}`);
+      console.error("Delete error:", error);
     }
   };
 
-  if (isLoading) {
+  // Fungsi konfirmasi barang ditemukan dengan popover
+  const handleConfirmReturn = async (report) => {
+    try {
+      await moveReportToReturned(report);
+      setActivePopover(null);
+      toast.success("Barang berhasil dikonfirmasi sebagai ditemukan!");
+    } catch (error) {
+      toast.error(`Gagal mengkonfirmasi: ${error.message}`);
+      console.error("Confirmation error:", error);
+    }
+  };
+
+  if (loading)
     return (
-      <div className="max-w-7xl mx-auto p-6 text-center">
-        <p className="text-gray-600">Memuat data...</p>
+      <div className="loading-container">
+        <div className="loader"></div>
+        <p>Memuat data...</p>
       </div>
     );
-  }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
-        <button
-          onClick={refreshData}
-          className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg transition-colors"
-        >
-          Refresh Data
-        </button>
-      </div>
+    <div className="dashboard-container">
+      <h2 className="dashboard-title">Dashboard</h2>
 
-      <p className="text-gray-600 mb-6">
-        Berikut adalah laporan barang hilang:
-      </p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Laporan Barang Hilang */}
+      <div className="dashboard-section">
+        <div className="section-header">
+          <h3>Laporan Barang Hilang</h3>
+          <span className="item-count">{lostReports.length} barang</span>
+        </div>
+
         {lostReports.length === 0 ? (
-          <p className="text-gray-500">Belum ada laporan barang hilang.</p>
+          <div className="empty-state">
+            <p>Belum ada laporan barang hilang</p>
+          </div>
         ) : (
-          lostReports.map((report) => (
-            <div
-              key={`lost_${report.id}`}
-              className="p-4 border border-gray-300 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300"
-            >
-              <h2 className="text-lg font-bold text-gray-700">
-                {report.namaBarang || "Nama tidak tersedia"}
-              </h2>
-              <p className="text-gray-600">
-                Kategori: {report.kategori || "Tidak dikategorikan"}
-              </p>
-              <p className="text-gray-600">
-                Deskripsi: {report.deskripsi || "Tidak ada deskripsi"}
-              </p>
-              <p className="text-gray-600">
-                Tanggal: {formatFirestoreDate(report.tanggal)}
-              </p>
-              {report.foto && (
-                <img
-                  src={report.foto}
-                  alt="Foto barang hilang"
-                  className="mt-4 w-full h-auto object-cover rounded-lg"
-                />
-              )}
-              {isAdmin && (
-                <>
-                  <button
-                    onClick={() => handleConfirmation(report, "lost_items")}
-                    className="mt-4 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg w-full transition-colors"
-                  >
-                    Konfirmasi Barang
-                  </button>
-                  <button
-                    onClick={() => handleDelete(report.id, "lost_items")}
-                    className="mt-2 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg w-full transition-colors"
-                  >
-                    Hapus Laporan
-                  </button>
-                </>
-              )}
-            </div>
-          ))
+          <div className="reports-grid">
+            {lostReports.map((report) => (
+              <ReportCard
+                key={report.id}
+                report={report}
+                onDelete={(e) => togglePopover(`delete-${report.id}`, e)}
+                onConfirm={(e) => togglePopover(`confirm-${report.id}`, e)}
+                isAdmin={isAdmin}
+                type="lost"
+              />
+            ))}
+          </div>
         )}
       </div>
 
-      <h1 className="text-3xl font-bold text-gray-800 mt-10 mb-4">
-        Laporan Pengembalian Barang
-      </h1>
-      <p className="text-gray-600 mb-6">
-        Berikut adalah laporan barang yang telah dikembalikan:
-      </p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Laporan Barang Dikembalikan */}
+      <div className="dashboard-section">
+        <div className="section-header">
+          <h3>Laporan Barang Ditemukan</h3>
+          <span className="item-count">{returnedReports.length} barang</span>
+        </div>
+
         {returnedReports.length === 0 ? (
-          <p className="text-gray-500">
-            Belum ada laporan barang yang dikembalikan.
-          </p>
+          <div className="empty-state">
+            <p>Belum ada laporan barang yang ditemukan</p>
+          </div>
         ) : (
-          returnedReports.map((report) => (
-            <div
-              key={`returned_${report.id}`}
-              className="p-4 border border-gray-300 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300"
-            >
-              <h2 className="text-lg font-bold text-gray-700">
-                {report.namaBarang || "Nama tidak tersedia"}
-              </h2>
-              <p className="text-gray-600">
-                Kategori: {report.kategori || "Tidak dikategorikan"}
-              </p>
-              <p className="text-gray-600">
-                Deskripsi: {report.deskripsi || "Tidak ada deskripsi"}
-              </p>
-              <p className="text-gray-600">
-                Tanggal Pengembalian: {formatFirestoreDate(report.returnedAt)}
-              </p>
-              {report.foto && (
-                <img
-                  src={report.foto}
-                  alt="Foto barang dikembalikan"
-                  className="mt-4 w-full h-auto object-cover rounded-lg"
-                />
-              )}
-              {isAdmin && (
-                <>
-                  <button
-                    onClick={() => handleConfirmation(report, "returned_items")}
-                    className="mt-4 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg w-full transition-colors"
-                  >
-                    Konfirmasi Barang
-                  </button>
-                  <button
-                    onClick={() => handleDelete(report.id, "returned_items")}
-                    className="mt-2 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg w-full transition-colors"
-                  >
-                    Hapus Laporan
-                  </button>
-                </>
-              )}
-            </div>
-          ))
+          <div className="reports-grid">
+            {returnedReports.map((report) => (
+              <ReportCard
+                key={report.id}
+                report={report}
+                onDelete={(e) => togglePopover(`delete-${report.id}`, e)}
+                isAdmin={isAdmin}
+                showReturnDate
+                type="returned"
+              />
+            ))}
+          </div>
         )}
       </div>
+
+      {/* Floating Popovers */}
+      {activePopover && activePopover.startsWith("confirm-") && (
+        <div
+          className="popover floating-popover confirm-popover"
+          style={{
+            top: `${popoverPosition.top}px`,
+            left: `${popoverPosition.left}px`,
+          }}
+        >
+          <div className="popover-header">
+            <i className="fas fa-info-circle"></i>
+            <h5>Konfirmasi Barang</h5>
+            <button
+              className="close-btn"
+              onClick={() => setActivePopover(null)}
+            >
+              ×
+            </button>
+          </div>
+          <div className="popover-body">
+            <p>Apakah Anda yakin barang ini telah ditemukan?</p>
+            <p>Barang akan dipindahkan ke laporan barang ditemukan.</p>
+          </div>
+          <div className="popover-footer">
+            <button
+              className="btn cancel-btn"
+              onClick={() => setActivePopover(null)}
+            >
+              Batal
+            </button>
+            <button
+              className="btn confirm-action-btn"
+              onClick={() =>
+                handleConfirmReturn(
+                  lostReports.find(
+                    (report) => `confirm-${report.id}` === activePopover
+                  )
+                )
+              }
+            >
+              <i className="fas fa-check"></i> Ya, Konfirmasi
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activePopover && activePopover.startsWith("delete-") && (
+        <div
+          className="popover floating-popover delete-popover"
+          style={{
+            top: `${popoverPosition.top}px`,
+            left: `${popoverPosition.left}px`,
+          }}
+        >
+          <div className="popover-header">
+            <i className="fas fa-exclamation-triangle"></i>
+            <h5>Hapus Laporan</h5>
+            <button
+              className="close-btn"
+              onClick={() => setActivePopover(null)}
+            >
+              ×
+            </button>
+          </div>
+          <div className="popover-body">
+            <p>Apakah Anda yakin ingin menghapus laporan ini?</p>
+            <p className="warning-text">Tindakan ini tidak dapat dibatalkan!</p>
+          </div>
+          <div className="popover-footer">
+            <button
+              className="btn cancel-btn"
+              onClick={() => setActivePopover(null)}
+            >
+              Batal
+            </button>
+            <button
+              className="btn delete-action-btn"
+              onClick={() => {
+                const id = activePopover.split("-")[1];
+                const isLostItem = lostReports.some(
+                  (report) => report.id === id
+                );
+                handleDelete(id, isLostItem ? "lost_items" : "returned_items");
+              }}
+            >
+              <i className="fas fa-trash"></i> Ya, Hapus
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+// Komponen Card yang bisa dipakai ulang
+const ReportCard = ({
+  report,
+  onDelete,
+  onConfirm,
+  isAdmin,
+  showReturnDate,
+  type,
+}) => {
+  return (
+    <div className={`report-card ${type}`}>
+      <div className="card-header">
+        <h4 className="item-name">{report.namaBarang || "Tanpa Nama"}</h4>
+        <span className={`status-badge ${type}`}>
+          {type === "lost" ? "Hilang" : "Ditemukan"}
+        </span>
+      </div>
+
+      <div className="card-content">
+        <div className="info-row">
+          <span className="info-label">Kategori:</span>
+          <span className="info-value">{report.kategori || "-"}</span>
+        </div>
+
+        <div className="info-row">
+          <span className="info-label">Deskripsi:</span>
+          <span className="info-value description">
+            {report.deskripsi || "-"}
+          </span>
+        </div>
+
+        <div className="info-row">
+          <span className="info-label">
+            {showReturnDate ? "Dikembalikan:" : "Dilaporkan:"}
+          </span>
+          <span className="info-value date">
+            {showReturnDate
+              ? formatDate(report.returnedAt)
+              : formatDate(report.tanggal)}
+          </span>
+        </div>
+      </div>
+
+      {report.foto && (
+        <div className="card-image">
+          <img src={report.foto} alt="Foto barang" />
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="card-actions">
+          {!showReturnDate && (
+            <button className="btn confirm-btn" onClick={onConfirm}>
+              <i className="fas fa-check-circle"></i> Konfirmasi Barang
+            </button>
+          )}
+
+          <button className="btn delete-btn" onClick={onDelete}>
+            <i className="fas fa-trash"></i> Hapus Laporan
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default Dashboard;
