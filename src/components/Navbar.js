@@ -51,11 +51,6 @@ function Navbar() {
               : "-translate-x-full md:translate-x-0 opacity-0"
           }`}
         >
-          <Link
-            to="/laporan-hilangan"
-            className="text-lg hover:text-yellow-500 transition-all duration-300 ease-in-out transform hover:scale-105"
-            onClick={() => setMenuOpen(false)} // Tutup menu saat klik di mobile
-          >
             Laporan Hilangan
           </Link>
           <Link
