@@ -7,7 +7,6 @@ import LaporanTemuan from "./components/LaporanTemuan";
 import AdminPage from "./pages/AdminPage";
 import DashboardPage from "./pages/Dashboard";
 import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
 import { AuthProvider } from "./context/AuthContext";
 import PrivateRoute from "./routes/AdminRoute";
 import { ToastContainer } from "react-toastify";
@@ -22,7 +21,6 @@ const App = () => {
             <Routes>
               <Route path="/" element={<HomeComponent />} />
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
               <Route path="/laporan-hilangan" element={<LaporanHilangan />} />
               <Route
                 path="/laporan-ditemukan"
