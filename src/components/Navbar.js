@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { auth } from "../config/firebase";
-import { Menu, X } from "lucide-react"; // Ikon menu dari lucide-react
+import { Menu, X } from "lucide-react";
 
 function Navbar() {
   const [user, setUser] = useState(null);
@@ -16,77 +16,111 @@ function Navbar() {
 
   const handleLogout = () => {
     auth.signOut();
-    setMenuOpen(false); // Tutup menu setelah logout
+    setMenuOpen(false);
   };
 
-  // Fungsi untuk toggle menu
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
   };
 
   return (
-    <nav className="bg-gray-900 text-white p-4 shadow-lg">
+    <nav className="bg-gray-900 text-white p-4 shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
         {/* Logo */}
         <Link
           to="/"
           className="text-2xl font-extrabold text-yellow-400 hover:text-yellow-500 transition-colors duration-300"
+          onClick={() => setMenuOpen(false)}
         >
           Laporan Kehilangan
         </Link>
 
         {/* Tombol Hamburger untuk Mobile */}
         <button
-          className="md:hidden text-white"
-          onClick={toggleMenu} // Fungsi toggle menu
+          className="md:hidden text-white focus:outline-none"
+          onClick={toggleMenu}
+          aria-label="Toggle menu"
         >
           {menuOpen ? <X size={28} /> : <Menu size={28} />}
         </button>
 
-        {/* Menu Links */}
-        <div
-          className={`absolute md:static top-16 left-0 w-full md:w-auto bg-gray-900 md:bg-transparent flex flex-col md:flex-row md:items-center space-y-6 md:space-y-0 md:space-x-6 px-6 md:px-0 transition-all duration-300 ease-in-out transform ${
-            menuOpen
-              ? "translate-x-0 opacity-100"
-              : "-translate-x-full md:translate-x-0 opacity-0"
-          }`}
-        >
+        {/* Menu Desktop */}
+        <div className="hidden md:flex items-center space-x-6">
+          <Link
+            to="/laporan-hilangan"
+            className="text-lg hover:text-yellow-500 transition-all duration-300"
+          >
             Laporan Hilangan
           </Link>
           <Link
-            to="/laporan-ditemukan"
-            className="text-lg hover:text-yellow-500 transition-all duration-300 ease-in-out transform hover:scale-105"
-            onClick={() => setMenuOpen(false)}
-          >
-            Laporan Ditemukan
-          </Link>
-          <Link
             to="/dashboard"
-            className="text-lg hover:text-yellow-500 transition-all duration-300 ease-in-out transform hover:scale-105"
-            onClick={() => setMenuOpen(false)}
+            className="text-lg hover:text-yellow-500 transition-all duration-300"
           >
             Dashboard
           </Link>
 
           {user ? (
-            <>
-              <button
-                onClick={handleLogout}
-                className="bg-red-500 text-white py-2 px-6 rounded-lg shadow-lg hover:bg-red-600 transition-all duration-300 ease-in-out transform hover:scale-105"
-              >
-                Logout
-              </button>
-            </>
+            <button
+              onClick={handleLogout}
+              className="bg-red-500 text-white py-2 px-6 rounded-lg hover:bg-red-600 transition-all duration-300"
+            >
+              Logout
+            </button>
           ) : (
             <Link
               to="/admin-login"
-              className="bg-red-500 text-white py-2 px-6 rounded-lg shadow-lg hover:bg-red-600 transition-all duration-300 ease-in-out transform hover:scale-105"
-              onClick={() => setMenuOpen(false)}
+              className="bg-red-500 text-white py-2 px-6 rounded-lg hover:bg-red-600 transition-all duration-300"
             >
               Login
             </Link>
           )}
         </div>
+
+        {/* Menu Mobile */}
+        {menuOpen && (
+          <div className="md:hidden absolute top-16 left-0 right-0 bg-gray-900 w-full px-6 py-4 shadow-lg">
+            <div className="flex flex-col space-y-4">
+              <Link
+                to="/laporan-hilangan"
+                className="text-lg hover:text-yellow-500 py-2 transition-all duration-300"
+                onClick={() => setMenuOpen(false)}
+              >
+                Laporan Hilangan
+              </Link>
+              <Link
+                to="/laporan-ditemukan"
+                className="text-lg hover:text-yellow-500 py-2 transition-all duration-300"
+                onClick={() => setMenuOpen(false)}
+              >
+                Laporan Ditemukan
+              </Link>
+              <Link
+                to="/dashboard"
+                className="text-lg hover:text-yellow-500 py-2 transition-all duration-300"
+                onClick={() => setMenuOpen(false)}
+              >
+                Dashboard
+              </Link>
+
+              {user ? (
+                <button
+                  onClick={handleLogout}
+                  className="bg-red-500 text-white py-2 px-6 rounded-lg hover:bg-red-600 transition-all duration-300 w-full text-left"
+                >
+                  Logout
+                </button>
+              ) : (
+                <Link
+                  to="/admin-login"
+                  className="bg-red-500 text-white py-2 px-6 rounded-lg hover:bg-red-600 transition-all duration-300 w-full text-center"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Login
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </nav>
   );
