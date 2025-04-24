@@ -9,9 +9,8 @@ import DashboardPage from "./pages/Dashboard";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import { AuthProvider } from "./context/AuthContext";
-import AdminRoute from "./routes/AdminRoute";
 import PrivateRoute from "./routes/AdminRoute";
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer } from "react-toastify";
 
 const App = () => {
   return (
@@ -25,31 +24,23 @@ const App = () => {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/laporan-hilangan" element={<LaporanHilangan />} />
-              <Route 
-                path="/laporan-ditemukan" 
+              <Route
+                path="/laporan-ditemukan"
                 element={
                   <PrivateRoute>
                     <LaporanTemuan />
                   </PrivateRoute>
-                } 
+                }
               />
-              <Route 
-                path="/dashboard" 
+              <Route
+                path="/dashboard"
                 element={
                   <PrivateRoute>
                     <DashboardPage />
                   </PrivateRoute>
-                } 
+                }
               />
               <Route path="/admin-login" element={<AdminPage />} />
-              <Route 
-                path="/admin-dashboard" 
-                element={
-                  <AdminRoute>
-                    <DashboardPage />
-                  </AdminRoute>
-                } 
-              />
             </Routes>
           </div>
           <ToastContainer />

@@ -46,7 +46,9 @@ function Navbar() {
         {/* Menu Links */}
         <div
           className={`absolute md:static top-16 left-0 w-full md:w-auto bg-gray-900 md:bg-transparent flex flex-col md:flex-row md:items-center space-y-6 md:space-y-0 md:space-x-6 px-6 md:px-0 transition-all duration-300 ease-in-out transform ${
-            menuOpen ? "translate-x-0 opacity-100" : "-translate-x-full md:translate-x-0 opacity-0"
+            menuOpen
+              ? "translate-x-0 opacity-100"
+              : "-translate-x-full md:translate-x-0 opacity-0"
           }`}
         >
           <Link
@@ -73,13 +75,6 @@ function Navbar() {
 
           {user ? (
             <>
-              <Link
-                to="/admin-dashboard"
-                className="text-lg hover:text-yellow-500 transition-all duration-300 ease-in-out transform hover:scale-105"
-                onClick={() => setMenuOpen(false)}
-              >
-                Admin Dashboard
-              </Link>
               <button
                 onClick={handleLogout}
                 className="bg-red-500 text-white py-2 px-6 rounded-lg shadow-lg hover:bg-red-600 transition-all duration-300 ease-in-out transform hover:scale-105"
