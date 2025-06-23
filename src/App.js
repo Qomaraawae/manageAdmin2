@@ -5,7 +5,7 @@ import HomeComponent from "./components/HomeComponent";
 import LaporanHilangan from "./components/LaporanHilangan";
 import LaporanTemuan from "./components/LaporanTemuan";
 import DashboardPage from "./pages/Dashboard";
-import LoginPage from "./pages/LoginPage";
+import LoginPage from "./pages/AdminPage";
 import { AuthProvider } from "./context/AuthContext";
 import PrivateRoute from "./routes/AdminRoute";
 import { ToastContainer } from "react-toastify";

@@ -1,10 +1,10 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { auth, db } from "../config/firebase";
-import { 
-  onAuthStateChanged, 
+import {
+  onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signOut 
+  signOut,
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
@@ -18,7 +18,11 @@ export const AuthProvider = ({ children }) => {
   // Fungsi untuk login
   const login = async (email, password) => {
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
       const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
       if (!userDoc.exists()) {
         throw new Error("User data not found");
@@ -32,13 +36,17 @@ export const AuthProvider = ({ children }) => {
   // Fungsi untuk register
   const register = async (email, password, name) => {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
       // Buat dokumen user baru
       await setDoc(doc(db, "users", userCredential.user.uid), {
         name,
         email,
         role: "user",
-        createdAt: new Date()
+        createdAt: new Date(),
       });
       return userCredential.user;
     } catch (error) {
@@ -74,7 +82,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     register,
-    logout
+    logout,
   };
 
   return (

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "cross-env NODE_ENV=production react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "tailwind:build": "tailwindcss -i ./src/index.css -o ./src/output.css --watch"
@@ -28,6 +28,8 @@
   },
   "devDependencies": {
     "autoprefixer": "^10.4.21",
+    "babel-plugin-transform-remove-console": "^6.9.4",
+    "cross-env": "^7.0.3",
     "tailwindcss": "^3.4.17"
   },
   "eslintConfig": {

@@ -6,6 +6,7 @@ import {
   moveReportToReturned,
 } from "../config/firestore";
 import { toast } from "react-toastify";
+import logger from "../utils/logger";
 import "../output.css";
 
 // Helper untuk format tanggal
@@ -14,29 +15,53 @@ const formatDate = (timestamp) => {
   return new Date(timestamp.seconds * 1000).toLocaleString();
 };
 
+// Komponen Modal untuk preview gambar
+const ImagePreviewModal = ({ imageUrl, onClose }) => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+      <div className="relative max-w-4xl max-h-[90vh]">
+        <button
+          className="absolute top-2 right-2 text-white text-2xl bg-gray-800 rounded-full w-8 h-8 flex items-center justify-center"
+          onClick={onClose}
+        >
+          ×
+        </button>
+        <img
+          src={imageUrl}
+          alt="Preview"
+          className="max-w-full max-h-[90vh] object-contain"
+        />
+      </div>
+    </div>
+  );
+};
+
 function Dashboard() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [lostReports, setLostReports] = useState([]);
-  const [returnedReports, setReturnedReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activePopover, setActivePopover] = useState(null);
   const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 });
+  const [previewImage, setPreviewImage] = useState(null);
 
   // Realtime listeners
   useEffect(() => {
-    const unsubscribeLost = setupReportsListener("lost_items", setLostReports);
-    const unsubscribeReturned = setupReportsListener(
-      "returned_items",
-      setReturnedReports
-    );
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
+
+    const unsubscribeLost = setupReportsListener("lost_items", (data) => {
+      logger.log("Lost reports updated:", data);
+      setLostReports(data);
+    });
 
     setLoading(false);
 
     return () => {
       unsubscribeLost();
-      unsubscribeReturned();
     };
-  }, []);
+  }, [isAdmin]);
 
   // Tambahkan event listener untuk menutup popover ketika klik di luar
   useEffect(() => {
@@ -64,7 +89,7 @@ function Dashboard() {
         window.pageYOffset || document.documentElement.scrollTop;
 
       setPopoverPosition({
-        top: buttonRect.top + scrollTop - 10, // Posisi di atas tombol
+        top: buttonRect.top + scrollTop - 10,
         left: buttonRect.left + buttonRect.width / 2,
       });
     }
@@ -78,31 +103,59 @@ function Dashboard() {
       await deleteReport(collectionName, id);
       setActivePopover(null);
       toast.success("Laporan berhasil dihapus!");
+      logger.log(`Deleted report ${id} from ${collectionName}`);
     } catch (error) {
+      logger.error("Delete error:", error.code, error.message);
       toast.error(`Gagal menghapus: ${error.message}`);
-      console.error("Delete error:", error);
     }
   };
 
   // Fungsi konfirmasi barang ditemukan dengan popover
   const handleConfirmReturn = async (report) => {
+    if (!isAdmin || !user?.uid) {
+      toast.error("Akses ditolak: Anda bukan admin atau tidak login");
+      logger.warn("Confirm attempt without admin access or user UID");
+      return;
+    }
+
     try {
-      await moveReportToReturned(report);
+      await moveReportToReturned(report, user.uid);
       setActivePopover(null);
       toast.success("Barang berhasil dikonfirmasi sebagai ditemukan!");
+      logger.log(`Confirmed report ${report.id} by admin ${user.uid}`);
     } catch (error) {
+      logger.error("Confirmation error:", error.code, error.message);
       toast.error(`Gagal mengkonfirmasi: ${error.message}`);
-      console.error("Confirmation error:", error);
     }
   };
 
-  if (loading)
+  // Fungsi untuk membuka preview gambar
+  const handleImageClick = (imageUrl) => {
+    setPreviewImage(imageUrl);
+  };
+
+  // Fungsi untuk menutup preview gambar
+  const handleClosePreview = () => {
+    setPreviewImage(null);
+  };
+
+  if (loading) {
     return (
       <div className="loading-container">
         <div className="loader"></div>
         <p>Memuat data...</p>
       </div>
     );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="access-denied">
+        <h2>Akses Ditolak</h2>
+        <p>Hanya admin yang dapat mengakses dashboard ini.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-container">
@@ -129,38 +182,20 @@ function Dashboard() {
                 onConfirm={(e) => togglePopover(`confirm-${report.id}`, e)}
                 isAdmin={isAdmin}
                 type="lost"
+                onImageClick={handleImageClick}
               />
             ))}
           </div>
         )}
       </div>
 
-      {/* Laporan Barang Dikembalikan */}
-      <div className="dashboard-section">
-        <div className="section-header">
-          <h3>Laporan Barang Ditemukan</h3>
-          <span className="item-count">{returnedReports.length} barang</span>
-        </div>
-
-        {returnedReports.length === 0 ? (
-          <div className="empty-state">
-            <p>Belum ada laporan barang yang ditemukan</p>
-          </div>
-        ) : (
-          <div className="reports-grid">
-            {returnedReports.map((report) => (
-              <ReportCard
-                key={report.id}
-                report={report}
-                onDelete={(e) => togglePopover(`delete-${report.id}`, e)}
-                isAdmin={isAdmin}
-                showReturnDate
-                type="returned"
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Modal Preview Gambar */}
+      {previewImage && (
+        <ImagePreviewModal
+          imageUrl={previewImage}
+          onClose={handleClosePreview}
+        />
+      )}
 
       {/* Floating Popovers */}
       {activePopover && activePopover.startsWith("confirm-") && (
@@ -262,8 +297,8 @@ const ReportCard = ({
   onDelete,
   onConfirm,
   isAdmin,
-  showReturnDate,
   type,
+  onImageClick,
 }) => {
   return (
     <div className={`report-card ${type}`}>
@@ -288,33 +323,26 @@ const ReportCard = ({
         </div>
 
         <div className="info-row">
-          <span className="info-label">
-            {showReturnDate ? "Dikembalikan:" : "Dilaporkan:"}
-          </span>
-          <span className="info-value date">
-            {showReturnDate
-              ? formatDate(report.returnedAt)
-              : formatDate(report.tanggal)}
-          </span>
+          <span className="info-label">Dilaporkan:</span>
+          <span className="info-value date">{formatDate(report.tanggal)}</span>
         </div>
       </div>
 
       {report.foto && (
         <div className="card-image">
-          <img src={report.foto} alt="Foto barang" />
+          <img
+            src={report.foto}
+            alt="Foto barang"
+            className="cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => onImageClick(report.foto)}
+          />
         </div>
       )}
 
       {isAdmin && (
         <div className="card-actions">
-          {!showReturnDate && (
-            <button className="btn confirm-btn" onClick={onConfirm}>
-              <i className="fas fa-check-circle"></i> Konfirmasi Barang
-            </button>
-          )}
-
-          <button className="btn delete-btn" onClick={onDelete}>
-            <i className="fas fa-trash"></i> Hapus Laporan
+          <button className="btn confirm-btn" onClick={onConfirm}>
+            <i className="fas fa-check-circle"></i> Konfirmasi Barang
           </button>
         </div>
       )}
